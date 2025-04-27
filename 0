@@ -1,0 +1,985 @@
+[4mopen[24m(2)                     System Calls Manual                     [4mopen[24m(2)
+
+[1mNAME[0m
+       open, openat, creat - open and possibly create a file
+
+[1mLIBRARY[0m
+       Standard C library ([4mlibc[24m, [4m-lc[24m)
+
+[1mSYNOPSIS[0m
+       [1m#include <fcntl.h>[0m
+
+       [1mint open(const char *[4m[22mpathname[24m[1m, int [4m[22mflags[24m[1m, ...[0m
+                  /* [1mmode_t [4m[22mmode[24m */ [1m);[0m
+
+       [1mint creat(const char *[4m[22mpathname[24m[1m, mode_t [4m[22mmode[24m[1m);[0m
+
+       [1mint openat(int [4m[22mdirfd[24m[1m, const char *[4m[22mpathname[24m[1m, int [4m[22mflags[24m[1m, ...[0m
+                  /* [1mmode_t [4m[22mmode[24m */ [1m);[0m
+
+       /* Documented separately, in [1mopenat2[22m(2): */
+       [1mint openat2(int [4m[22mdirfd[24m[1m, const char *[4m[22mpathname[24m[1m,[0m
+                  [1mconst struct open_how *[4m[22mhow[24m[1m, size_t [4m[22msize[24m[1m);[0m
+
+   Feature Test Macro Requirements for glibc (see [1mfeature_test_macros[22m(7)):
+
+       [1mopenat[22m():
+           Since glibc 2.10:
+               _POSIX_C_SOURCE >= 200809L
+           Before glibc 2.10:
+               _ATFILE_SOURCE
+
+[1mDESCRIPTION[0m
+       The [1mopen[22m() system call opens the file specified by [4mpathname[24m.  If the
+       specified  file  does  not  exist,  it may optionally (if [1mO_CREAT [22mis
+       specified in [4mflags[24m) be created by [1mopen[22m().
+
+       The return value of [1mopen[22m() is a file descriptor, a  small,  nonnega‐
+       tive  integer that is an index to an entry in the process's table of
+       open file descriptors.  The file descriptor is  used  in  subsequent
+       system calls ([1mread[22m(2), [1mwrite[22m(2), [1mlseek[22m(2), [1mfcntl[22m(2), etc.)  to refer
+       to the open file.  The file descriptor returned by a successful call
+       will  be  the lowest-numbered file descriptor not currently open for
+       the process.
+
+       By default, the new file descriptor is set to remain open across  an
+       [1mexecve[22m(2)  (i.e.,  the  [1mFD_CLOEXEC [22mfile descriptor flag described in
+       [1mfcntl[22m(2) is initially disabled); the [1mO_CLOEXEC [22mflag,  described  be‐
+       low,  can be used to change this default.  The file offset is set to
+       the beginning of the file (see [1mlseek[22m(2)).
+
+       A call to [1mopen[22m() creates a new [4mopen[24m [4mfile[24m [4mdescription[24m,  an  entry  in
+       the  system-wide  table  of  open  files.  The open file description
+       records the file offset and the file status flags  (see  below).   A
+       file  descriptor  is  a  reference to an open file description; this
+       reference is unaffected if [4mpathname[24m is subsequently removed or modi‐
+       fied to refer to a different file.  For further details on open file
+       descriptions, see NOTES.
+
+       The argument [4mflags[24m must include one of the following  [4maccess[24m  [4mmodes[24m:
+       [1mO_RDONLY[22m, [1mO_WRONLY[22m, or [1mO_RDWR[22m.  These request opening the file read-
+       only, write-only, or read/write, respectively.
+
+       In  addition, zero or more file creation flags and file status flags
+       can  be  bitwise  ORed  in  [4mflags[24m.   The  [4mfile[24m  [4mcreation[24m  [4mflags[24m  are
+       [1mO_CLOEXEC[22m,   [1mO_CREAT[22m,  [1mO_DIRECTORY[22m,  [1mO_EXCL[22m,  [1mO_NOCTTY[22m,  [1mO_NOFOLLOW[22m,
+       [1mO_TMPFILE[22m, and [1mO_TRUNC[22m.  The [4mfile[24m [4mstatus[24m [4mflags[24m are all  of  the  re‐
+       maining  flags  listed  below.   The  distinction  between these two
+       groups of flags is that the file creation flags affect the semantics
+       of the open operation itself, while the file status flags affect the
+       semantics of subsequent I/O operations.  The file status  flags  can
+       be retrieved and (in some cases) modified; see [1mfcntl[22m(2) for details.
+
+       The  full  list  of  file creation flags and file status flags is as
+       follows:
+
+       [1mO_APPEND[0m
+              The file is opened in append mode.  Before each [1mwrite[22m(2), the
+              file offset is positioned at the end of the file, as if  with
+              [1mlseek[22m(2).   The modification of the file offset and the write
+              operation are performed as a single atomic step.
+
+              [1mO_APPEND [22mmay lead to corrupted files on  NFS  filesystems  if
+              more  than  one process appends data to a file at once.  This
+              is because NFS does not support appending to a file,  so  the
+              client kernel has to simulate it, which can't be done without
+              a race condition.
+
+       [1mO_ASYNC[0m
+              Enable  signal-driven  I/O:  generate  a signal ([1mSIGIO [22mby de‐
+              fault, but this can be changed via [1mfcntl[22m(2))  when  input  or
+              output  becomes  possible on this file descriptor.  This fea‐
+              ture is available only for terminals, pseudoterminals,  sock‐
+              ets, and (since Linux 2.6) pipes and FIFOs.  See [1mfcntl[22m(2) for
+              further details.  See also BUGS, below.
+
+       [1mO_CLOEXEC [22m(since Linux 2.6.23)
+              Enable  the  close-on-exec  flag for the new file descriptor.
+              Specifying this flag permits a program  to  avoid  additional
+              [1mfcntl[22m(2) [1mF_SETFD [22moperations to set the [1mFD_CLOEXEC [22mflag.
+
+              Note  that  the  use of this flag is essential in some multi‐
+              threaded programs, because using a separate [1mfcntl[22m(2)  [1mF_SETFD[0m
+              operation  to  set  the  [1mFD_CLOEXEC  [22mflag does not suffice to
+              avoid race conditions where one thread opens a file  descrip‐
+              tor and attempts to set its close-on-exec flag using [1mfcntl[22m(2)
+              at  the  same  time as another thread does a [1mfork[22m(2) plus [1mex‐[0m
+              [1mecve[22m(2).  Depending on the order of execution, the  race  may
+              lead to the file descriptor returned by [1mopen[22m() being uninten‐
+              tionally  leaked to the program executed by the child process
+              created by [1mfork[22m(2).  (This kind of race is in principle  pos‐
+              sible  for  any  system  call  that creates a file descriptor
+              whose close-on-exec flag should be  set,  and  various  other
+              Linux  system  calls  provide  an equivalent of the [1mO_CLOEXEC[0m
+              flag to deal with this problem.)
+
+       [1mO_CREAT[0m
+              If [4mpathname[24m does not exist, create it as a regular file.
+
+              The owner (user ID) of the new file is set to  the  effective
+              user ID of the process.
+
+              The  group ownership (group ID) of the new file is set either
+              to the effective group ID of the process (System V semantics)
+              or to the group ID of the parent directory  (BSD  semantics).
+              On  Linux,  the  behavior depends on whether the set-group-ID
+              mode bit is set on the parent directory: if that bit is  set,
+              then  BSD  semantics apply; otherwise, System V semantics ap‐
+              ply.  For some filesystems, the behavior also depends on  the
+              [4mbsdgroups[24m and [4msysvgroups[24m mount options described in [1mmount[22m(8).
+
+              The  [4mmode[24m argument specifies the file mode bits to be applied
+              when a new file is created.  If neither [1mO_CREAT [22mnor [1mO_TMPFILE[0m
+              is specified in [4mflags[24m, then [4mmode[24m is ignored (and can thus  be
+              specified  as  0, or simply omitted).  The [4mmode[24m argument [1mmust[0m
+              be supplied if [1mO_CREAT [22mor [1mO_TMPFILE [22mis specified in [4mflags[24m; if
+              it is not supplied, some arbitrary bytes from the stack  will
+              be applied as the file mode.
+
+              The  effective mode is modified by the process's [4mumask[24m in the
+              usual way: in the absence of a default ACL, the mode  of  the
+              created file is [4m(mode[24m [4m&[24m [4m~umask)[24m.
+
+              Note  that  [4mmode[24m applies only to future accesses of the newly
+              created file; the [1mopen[22m() call that creates a  read-only  file
+              may well return a read/write file descriptor.
+
+              The following symbolic constants are provided for [4mmode[24m:
+
+              [1mS_IRWXU  [22m00700 user (file owner) has read, write, and execute
+                       permission
+
+              [1mS_IRUSR  [22m00400 user has read permission
+
+              [1mS_IWUSR  [22m00200 user has write permission
+
+              [1mS_IXUSR  [22m00100 user has execute permission
+
+              [1mS_IRWXG  [22m00070 group has read, write, and execute permission
+
+              [1mS_IRGRP  [22m00040 group has read permission
+
+              [1mS_IWGRP  [22m00020 group has write permission
+
+              [1mS_IXGRP  [22m00010 group has execute permission
+
+              [1mS_IRWXO  [22m00007  others  have read, write, and execute permis‐
+                       sion
+
+              [1mS_IROTH  [22m00004 others have read permission
+
+              [1mS_IWOTH  [22m00002 others have write permission
+
+              [1mS_IXOTH  [22m00001 others have execute permission
+
+              According to POSIX, the effect when other  bits  are  set  in
+              [4mmode[24m  is  unspecified.  On Linux, the following bits are also
+              honored in [4mmode[24m:
+
+              [1mS_ISUID  [22m0004000 set-user-ID bit
+
+              [1mS_ISGID  [22m0002000 set-group-ID bit (see [1minode[22m(7)).
+
+              [1mS_ISVTX  [22m0001000 sticky bit (see [1minode[22m(7)).
+
+       [1mO_DIRECT [22m(since Linux 2.4.10)
+              Try to minimize cache effects of the I/O  to  and  from  this
+              file.   In  general  this will degrade performance, but it is
+              useful in special situations, such as  when  applications  do
+              their  own  caching.  File I/O is done directly to/from user-
+              space buffers.  The [1mO_DIRECT [22mflag on its own makes an  effort
+              to transfer data synchronously, but does not give the guaran‐
+              tees  of the [1mO_SYNC [22mflag that data and necessary metadata are
+              transferred.  To guarantee synchronous I/O,  [1mO_SYNC  [22mmust  be
+              used  in  addition  to [1mO_DIRECT[22m.  See NOTES below for further
+              discussion.
+
+              A semantically similar (but deprecated) interface  for  block
+              devices is described in [1mraw[22m(8).
+
+       [1mO_DIRECTORY[0m
+              If [4mpathname[24m is not a directory, cause the open to fail.  This
+              flag  was  added in Linux 2.1.126, to avoid denial-of-service
+              problems if [1mopendir[22m(3) is called on a FIFO or tape device.
+
+       [1mO_DSYNC[0m
+              Write operations on the file will complete according  to  the
+              requirements of synchronized I/O [4mdata[24m integrity completion.
+
+              By  the  time  [1mwrite[22m(2) (and similar) return, the output data
+              has been transferred to the underlying hardware,  along  with
+              any  file  metadata  that  would be required to retrieve that
+              data (i.e., as though each [1mwrite[22m(2) was followed by a call to
+              [1mfdatasync[22m(2)).  [4mSee[24m [4mNOTES[24m [4mbelow[24m.
+
+       [1mO_EXCL [22mEnsure that this call creates the file: if this flag is spec‐
+              ified in conjunction with [1mO_CREAT[22m, and [4mpathname[24m  already  ex‐
+              ists, then [1mopen[22m() fails with the error [1mEEXIST[22m.
+
+              When  these  two  flags are specified, symbolic links are not
+              followed: if [4mpathname[24m is a symbolic link, then  [1mopen[22m()  fails
+              regardless of where the symbolic link points.
+
+              In general, the behavior of [1mO_EXCL [22mis undefined if it is used
+              without  [1mO_CREAT[22m.   There  is one exception: on Linux 2.6 and
+              later, [1mO_EXCL [22mcan be used without [1mO_CREAT [22mif [4mpathname[24m  refers
+              to a block device.  If the block device is in use by the sys‐
+              tem (e.g., mounted), [1mopen[22m() fails with the error [1mEBUSY[22m.
+
+              On NFS, [1mO_EXCL [22mis supported only when using NFSv3 or later on
+              kernel  2.6  or later.  In NFS environments where [1mO_EXCL [22msup‐
+              port is not provided, programs that rely on it for performing
+              locking tasks will contain a race condition.   Portable  pro‐
+              grams  that want to perform atomic file locking using a lock‐
+              file, and need to avoid reliance on NFS support  for  [1mO_EXCL[22m,
+              can create a unique file on the same filesystem (e.g., incor‐
+              porating hostname and PID), and use [1mlink[22m(2) to make a link to
+              the  lockfile.  If [1mlink[22m(2) returns 0, the lock is successful.
+              Otherwise, use [1mstat[22m(2) on the unique file  to  check  if  its
+              link count has increased to 2, in which case the lock is also
+              successful.
+
+       [1mO_LARGEFILE[0m
+              (LFS)  Allow  files  whose  sizes cannot be represented in an
+              [4moff_t[24m (but can be represented in an [4moff64_t[24m)  to  be  opened.
+              The [1m_LARGEFILE64_SOURCE [22mmacro must be defined (before includ‐
+              ing  [4many[24m  header  files)  in order to obtain this definition.
+              Setting  the  [1m_FILE_OFFSET_BITS  [22mfeature  test  macro  to  64
+              (rather  than  using  [1mO_LARGEFILE[22m) is the preferred method of
+              accessing  large  files   on   32-bit   systems   (see   [1mfea‐[0m
+              [1mture_test_macros[22m(7)).
+
+       [1mO_NOATIME [22m(since Linux 2.6.8)
+              Do  not update the file last access time ([4mst_atime[24m in the in‐
+              ode) when the file is [1mread[22m(2).
+
+              This flag can be employed only if one of the following condi‐
+              tions is true:
+
+              •  The effective UID of the process matches the owner UID  of
+                 the file.
+
+              •  The  calling  process has the [1mCAP_FOWNER [22mcapability in its
+                 user namespace and the owner UID of the file has a mapping
+                 in the namespace.
+
+              This flag is intended for use by indexing or backup programs,
+              where its use can significantly reduce the amount of disk ac‐
+              tivity.  This flag may not be effective on  all  filesystems.
+              One  example  is  NFS,  where the server maintains the access
+              time.
+
+       [1mO_NOCTTY[0m
+              If [4mpathname[24m refers to a terminal  device—see  [1mtty[22m(4)—it  will
+              not  become  the  process's  controlling terminal even if the
+              process does not have one.
+
+       [1mO_NOFOLLOW[0m
+              If the trailing component (i.e., basename) of [4mpathname[24m  is  a
+              symbolic  link,  then  the  open fails, with the error [1mELOOP[22m.
+              Symbolic links in earlier components  of  the  pathname  will
+              still be followed.  (Note that the [1mELOOP [22merror that can occur
+              in this case is indistinguishable from the case where an open
+              fails  because  there are too many symbolic links found while
+              resolving components in the prefix part of the pathname.)
+
+              This flag is a FreeBSD extension, which was  added  in  Linux
+              2.1.126,   and   has   subsequently   been   standardized  in
+              POSIX.1-2008.
+
+              See also [1mO_PATH [22mbelow.
+
+       [1mO_NONBLOCK [22mor [1mO_NDELAY[0m
+              When possible, the file is opened in nonblocking mode.   Nei‐
+              ther the [1mopen[22m() nor any subsequent I/O operations on the file
+              descriptor  which  is returned will cause the calling process
+              to wait.
+
+              Note that the setting of this flag has no effect on the oper‐
+              ation of [1mpoll[22m(2), [1mselect[22m(2),  [1mepoll[22m(7),  and  similar,  since
+              those  interfaces  merely  inform  the caller about whether a
+              file descriptor is "ready", meaning  that  an  I/O  operation
+              performed  on  the  file  descriptor with the [1mO_NONBLOCK [22mflag
+              [4mclear[24m would not block.
+
+              Note that this flag has no effect for regular files and block
+              devices; that is, I/O operations will  (briefly)  block  when
+              device activity is required, regardless of whether [1mO_NONBLOCK[0m
+              is  set.   Since [1mO_NONBLOCK [22msemantics might eventually be im‐
+              plemented, applications should not depend upon  blocking  be‐
+              havior  when specifying this flag for regular files and block
+              devices.
+
+              For the handling of FIFOs (named pipes),  see  also  [1mfifo[22m(7).
+              For  a  discussion of the effect of [1mO_NONBLOCK [22min conjunction
+              with mandatory file locks and with file leases, see [1mfcntl[22m(2).
+
+       [1mO_PATH [22m(since Linux 2.6.39)
+              Obtain a file descriptor that can be used for  two  purposes:
+              to  indicate a location in the filesystem tree and to perform
+              operations that act purely at the file descriptor level.  The
+              file itself is not opened, and other file  operations  (e.g.,
+              [1mread[22m(2),   [1mwrite[22m(2),   [1mfchmod[22m(2),   [1mfchown[22m(2),  [1mfgetxattr[22m(2),
+              [1mioctl[22m(2), [1mmmap[22m(2)) fail with the error [1mEBADF[22m.
+
+              The following operations [4mcan[24m be performed  on  the  resulting
+              file descriptor:
+
+              •  [1mclose[22m(2).
+
+              •  [1mfchdir[22m(2),  if  the  file descriptor refers to a directory
+                 (since Linux 3.5).
+
+              •  [1mfstat[22m(2) (since Linux 3.6).
+
+              •  [1mfstatfs[22m(2) (since Linux 3.12).
+
+              •  Duplicating the file descriptor ([1mdup[22m(2), [1mfcntl[22m(2) [1mF_DUPFD[22m,
+                 etc.).
+
+              •  Getting  and  setting  file  descriptor  flags   ([1mfcntl[22m(2)
+                 [1mF_GETFD [22mand [1mF_SETFD[22m).
+
+              •  Retrieving  open  file  status  flags  using  the [1mfcntl[22m(2)
+                 [1mF_GETFL [22moperation: the returned flags will include the bit
+                 [1mO_PATH[22m.
+
+              •  Passing the file descriptor as the [4mdirfd[24m argument of  [1mope‐[0m
+                 [1mnat[22m()  and  the other "*at()" system calls.  This includes
+                 [1mlinkat[22m(2) with [1mAT_EMPTY_PATH [22m(or via procfs using  [1mAT_SYM‐[0m
+                 [1mLINK_FOLLOW[22m) even if the file is not a directory.
+
+              •  Passing  the file descriptor to another process via a UNIX
+                 domain socket (see [1mSCM_RIGHTS [22min [1munix[22m(7)).
+
+              When [1mO_PATH [22mis specified  in  [4mflags[24m,  flag  bits  other  than
+              [1mO_CLOEXEC[22m, [1mO_DIRECTORY[22m, and [1mO_NOFOLLOW [22mare ignored.
+
+              Opening  a file or directory with the [1mO_PATH [22mflag requires no
+              permissions on the object itself (but  does  require  execute
+              permission on the directories in the path prefix).  Depending
+              on  the  subsequent operation, a check for suitable file per‐
+              missions may be performed (e.g., [1mfchdir[22m(2)  requires  execute
+              permission  on the directory referred to by its file descrip‐
+              tor argument).  By  contrast,  obtaining  a  reference  to  a
+              filesystem  object  by  opening it with the [1mO_RDONLY [22mflag re‐
+              quires that the caller have read permission  on  the  object,
+              even  when  the  subsequent  operation  (e.g., [1mfchdir[22m(2), [1mfs‐[0m
+              [1mtat[22m(2)) does not require read permission on the object.
+
+              If [4mpathname[24m is a symbolic link and  the  [1mO_NOFOLLOW  [22mflag  is
+              also  specified,  then the call returns a file descriptor re‐
+              ferring to the symbolic link.  This file  descriptor  can  be
+              used  as  the  [4mdirfd[24m  argument  in  calls to [1mfchownat[22m(2), [1mfs‐[0m
+              [1mtatat[22m(2), [1mlinkat[22m(2), and [1mreadlinkat[22m(2) with an empty pathname
+              to have the calls operate on the symbolic link.
+
+              If [4mpathname[24m refers to an automount point  that  has  not  yet
+              been triggered, so no other filesystem is mounted on it, then
+              the call returns a file descriptor referring to the automount
+              directory without triggering a mount.  [1mfstatfs[22m(2) can then be
+              used to determine if it is, in fact, an untriggered automount
+              point ([1m.f_type == AUTOFS_SUPER_MAGIC[22m).
+
+              One use of [1mO_PATH [22mfor regular files is to provide the equiva‐
+              lent  of  POSIX.1's [1mO_EXEC [22mfunctionality.  This permits us to
+              open a file for which we have execute permission but not read
+              permission, and then execute that file, with steps  something
+              like the following:
+
+                  char buf[PATH_MAX];
+                  fd = open("some_prog", O_PATH);
+                  snprintf(buf, PATH_MAX, "/proc/self/fd/%d", fd);
+                  execl(buf, "some_prog", (char *) NULL);
+
+              An  [1mO_PATH [22mfile descriptor can also be passed as the argument
+              of [1mfexecve[22m(3).
+
+       [1mO_SYNC [22mWrite operations on the file will complete according  to  the
+              requirements  of  synchronized  I/O [4mfile[24m integrity completion
+              (by contrast with the synchronized I/O [4mdata[24m integrity comple‐
+              tion provided by [1mO_DSYNC[22m.)
+
+              By the time [1mwrite[22m(2) (or similar) returns,  the  output  data
+              and associated file metadata have been transferred to the un‐
+              derlying hardware (i.e., as though each [1mwrite[22m(2) was followed
+              by a call to [1mfsync[22m(2)).  [4mSee[24m [4mNOTES[24m [4mbelow[24m.
+
+       [1mO_TMPFILE [22m(since Linux 3.11)
+              Create an unnamed temporary regular file.  The [4mpathname[24m argu‐
+              ment  specifies a directory; an unnamed inode will be created
+              in that directory's filesystem.  Anything written to the  re‐
+              sulting  file  will  be lost when the last file descriptor is
+              closed, unless the file is given a name.
+
+              [1mO_TMPFILE [22mmust be specified with one of  [1mO_RDWR  [22mor  [1mO_WRONLY[0m
+              and,  optionally,  [1mO_EXCL[22m.   If [1mO_EXCL [22mis not specified, then
+              [1mlinkat[22m(2) can be used to link the  temporary  file  into  the
+              filesystem,  making it permanent, using code like the follow‐
+              ing:
+
+                  char path[PATH_MAX];
+                  fd = open("/path/to/dir", O_TMPFILE | O_RDWR,
+                                          S_IRUSR | S_IWUSR);
+
+                  /* File I/O on 'fd'... */
+
+                  linkat(fd, "", AT_FDCWD, "/path/for/file", AT_EMPTY_PATH);
+
+                  /* If the caller doesn't have the CAP_DAC_READ_SEARCH
+                     capability (needed to use AT_EMPTY_PATH with linkat(2)),
+                     and there is a proc(5) filesystem mounted, then the
+                     linkat(2) call above can be replaced with:
+
+                  snprintf(path, PATH_MAX,  "/proc/self/fd/%d", fd);
+                  linkat(AT_FDCWD, path, AT_FDCWD, "/path/for/file",
+                                          AT_SYMLINK_FOLLOW);
+                  */
+
+              In this case, the [1mopen[22m() [4mmode[24m argument  determines  the  file
+              permission mode, as with [1mO_CREAT[22m.
+
+              Specifying  [1mO_EXCL  [22min  conjunction with [1mO_TMPFILE [22mprevents a
+              temporary file from being linked into the filesystem  in  the
+              above  manner.  (Note that the meaning of [1mO_EXCL [22min this case
+              is different from the meaning of [1mO_EXCL [22motherwise.)
+
+              There are two main use cases for [1mO_TMPFILE[22m:
+
+              •  Improved [1mtmpfile[22m(3) functionality: race-free  creation  of
+                 temporary  files  that  (1) are automatically deleted when
+                 closed; (2) can never be reached via any pathname; (3) are
+                 not subject to symlink attacks; and (4) do not require the
+                 caller to devise unique names.
+
+              •  Creating a file that is initially invisible, which is then
+                 populated with  data  and  adjusted  to  have  appropriate
+                 filesystem attributes ([1mfchown[22m(2), [1mfchmod[22m(2), [1mfsetxattr[22m(2),
+                 etc.)   before being atomically linked into the filesystem
+                 in a fully formed  state  (using  [1mlinkat[22m(2)  as  described
+                 above).
+
+              [1mO_TMPFILE [22mrequires support by the underlying filesystem; only
+              a  subset  of Linux filesystems provide that support.  In the
+              initial implementation, support was  provided  in  the  ext2,
+              ext3,  ext4,  UDF, Minix, and tmpfs filesystems.  Support for
+              other filesystems has subsequently been added as follows: XFS
+              (Linux 3.15); Btrfs (Linux  3.16);  F2FS  (Linux  3.16);  and
+              ubifs (Linux 4.9)
+
+       [1mO_TRUNC[0m
+              If  the file already exists and is a regular file and the ac‐
+              cess mode allows writing (i.e., is  [1mO_RDWR  [22mor  [1mO_WRONLY[22m)  it
+              will be truncated to length 0.  If the file is a FIFO or ter‐
+              minal  device  file, the [1mO_TRUNC [22mflag is ignored.  Otherwise,
+              the effect of [1mO_TRUNC [22mis unspecified.
+
+   [1mcreat()[0m
+       A call to [1mcreat[22m() is equivalent to calling [1mopen[22m() with  [4mflags[24m  equal
+       to [1mO_CREAT|O_WRONLY|O_TRUNC[22m.
+
+   [1mopenat()[0m
+       The [1mopenat[22m() system call operates in exactly the same way as [1mopen[22m(),
+       except for the differences described here.
+
+       The [4mdirfd[24m argument is used in conjunction with the [4mpathname[24m argument
+       as follows:
+
+       •  If  the pathname given in [4mpathname[24m is absolute, then [4mdirfd[24m is ig‐
+          nored.
+
+       •  If the pathname given in [4mpathname[24m is relative and  [4mdirfd[24m  is  the
+          special  value [1mAT_FDCWD[22m, then [4mpathname[24m is interpreted relative to
+          the current  working  directory  of  the  calling  process  (like
+          [1mopen[22m()).
+
+       •  If  the pathname given in [4mpathname[24m is relative, then it is inter‐
+          preted relative to the directory referred to by the file descrip‐
+          tor [4mdirfd[24m (rather than relative to the current working  directory
+          of the calling process, as is done by [1mopen[22m() for a relative path‐
+          name).   In  this case, [4mdirfd[24m must be a directory that was opened
+          for reading ([1mO_RDONLY[22m) or using the [1mO_PATH [22mflag.
+
+       If the pathname given in [4mpathname[24m is relative, and [4mdirfd[24m  is  not  a
+       valid file descriptor, an error ([1mEBADF[22m) results.  (Specifying an in‐
+       valid  file descriptor number in [4mdirfd[24m can be used as a means to en‐
+       sure that [4mpathname[24m is absolute.)
+
+   [1mopenat2(2)[0m
+       The [1mopenat2[22m(2) system call is an extension of [1mopenat[22m(), and provides
+       a superset of the features of  [1mopenat[22m().   It  is  documented  sepa‐
+       rately, in [1mopenat2[22m(2).
+
+[1mRETURN VALUE[0m
+       On  success,  [1mopen[22m(),  [1mopenat[22m(), and [1mcreat[22m() return the new file de‐
+       scriptor (a nonnegative integer).  On error, -1 is returned and  [4mer‐[0m
+       [4mrno[24m is set to indicate the error.
+
+[1mERRORS[0m
+       [1mopen[22m(), [1mopenat[22m(), and [1mcreat[22m() can fail with the following errors:
+
+       [1mEACCES [22mThe  requested  access  to the file is not allowed, or search
+              permission is denied for one of the directories in  the  path
+              prefix  of  [4mpathname[24m, or the file did not exist yet and write
+              access to the parent directory is  not  allowed.   (See  also
+              [1mpath_resolution[22m(7).)
+
+       [1mEACCES [22mWhere  [1mO_CREAT  [22mis  specified,  the  [4mprotected_fifos[24m  or [4mpro‐[0m
+              [4mtected_regular[24m sysctl is enabled, the file already exists and
+              is a FIFO or regular file, the owner of the file  is  neither
+              the  current  user nor the owner of the containing directory,
+              and the containing directory is both world- or group-writable
+              and  sticky.   For   details,   see   the   descriptions   of
+              [4m/proc/sys/fs/protected_fifos[24m and [4m/proc/sys/fs/protected_regu‐[0m
+              [4mlar[24m in [1mproc[22m(5).
+
+       [1mEBADF  [22m([1mopenat[22m()) [4mpathname[24m is relative but [4mdirfd[24m is neither [1mAT_FDCWD[0m
+              nor a valid file descriptor.
+
+       [1mEBUSY  O_EXCL  [22mwas specified in [4mflags[24m and [4mpathname[24m refers to a block
+              device that is in use by the system (e.g., it is mounted).
+
+       [1mEDQUOT [22mWhere [1mO_CREAT [22mis specified, the file does not exist, and  the
+              user's  quota  of disk blocks or inodes on the filesystem has
+              been exhausted.
+
+       [1mEEXIST [4m[22mpathname[24m already exists and [1mO_CREAT [22mand [1mO_EXCL [22mwere used.
+
+       [1mEFAULT [4m[22mpathname[24m points outside your accessible address space.
+
+       [1mEFBIG  [22mSee [1mEOVERFLOW[22m.
+
+       [1mEINTR  [22mWhile blocked waiting to complete an open of  a  slow  device
+              (e.g.,  a  FIFO;  see [1mfifo[22m(7)), the call was interrupted by a
+              signal handler; see [1msignal[22m(7).
+
+       [1mEINVAL [22mThe filesystem does not support the [1mO_DIRECT [22mflag.  See [1mNOTES[0m
+              for more information.
+
+       [1mEINVAL [22mInvalid value in [4mflags[24m.
+
+       [1mEINVAL O_TMPFILE [22mwas specified in [4mflags[24m, but  neither  [1mO_WRONLY  [22mnor
+              [1mO_RDWR [22mwas specified.
+
+       [1mEINVAL O_CREAT  [22mwas  specified  in  [4mflags[24m  and  the  final component
+              ("basename") of the new file's [4mpathname[24m is invalid (e.g.,  it
+              contains  characters not permitted by the underlying filesys‐
+              tem).
+
+       [1mEINVAL [22mThe final  component  ("basename")  of  [4mpathname[24m  is  invalid
+              (e.g., it contains characters not permitted by the underlying
+              filesystem).
+
+       [1mEISDIR [4m[22mpathname[24m  refers  to a directory and the access requested in‐
+              volved writing (that is, [1mO_WRONLY [22mor [1mO_RDWR [22mis set).
+
+       [1mEISDIR [4m[22mpathname[24m refers to an existing directory, [1mO_TMPFILE  [22mand  one
+              of  [1mO_WRONLY [22mor [1mO_RDWR [22mwere specified in [4mflags[24m, but this ker‐
+              nel version does not provide the [1mO_TMPFILE [22mfunctionality.
+
+       [1mELOOP  [22mToo many symbolic links were encountered in  resolving  [4mpath‐[0m
+              [4mname[24m.
+
+       [1mELOOP  [4m[22mpathname[24m  was a symbolic link, and [4mflags[24m specified [1mO_NOFOLLOW[0m
+              but not [1mO_PATH[22m.
+
+       [1mEMFILE [22mThe per-process limit on the number of open file  descriptors
+              has  been  reached  (see  the description of [1mRLIMIT_NOFILE [22min
+              [1mgetrlimit[22m(2)).
+
+       [1mENAMETOOLONG[0m
+              [4mpathname[24m was too long.
+
+       [1mENFILE [22mThe system-wide limit on the total number of open  files  has
+              been reached.
+
+       [1mENODEV [4m[22mpathname[24m refers to a device special file and no corresponding
+              device  exists.   (This is a Linux kernel bug; in this situa‐
+              tion [1mENXIO [22mmust be returned.)
+
+       [1mENOENT O_CREAT [22mis not set and the named file does not exist.
+
+       [1mENOENT [22mA directory component in [4mpathname[24m does not exist or is a dan‐
+              gling symbolic link.
+
+       [1mENOENT [4m[22mpathname[24m refers to a nonexistent directory, [1mO_TMPFILE [22mand one
+              of [1mO_WRONLY [22mor [1mO_RDWR [22mwere specified in [4mflags[24m, but this  ker‐
+              nel version does not provide the [1mO_TMPFILE [22mfunctionality.
+
+       [1mENOMEM [22mThe  named  file  is  a  FIFO, but memory for the FIFO buffer
+              can't be allocated because the per-user hard limit on  memory
+              allocation  for  pipes has been reached and the caller is not
+              privileged; see [1mpipe[22m(7).
+
+       [1mENOMEM [22mInsufficient kernel memory was available.
+
+       [1mENOSPC [4m[22mpathname[24m was to be created but the device containing [4mpathname[0m
+              has no room for the new file.
+
+       [1mENOTDIR[0m
+              A component used as a directory in [4mpathname[24m is not, in  fact,
+              a  directory,  or  [1mO_DIRECTORY [22mwas specified and [4mpathname[24m was
+              not a directory.
+
+       [1mENOTDIR[0m
+              ([1mopenat[22m()) [4mpathname[24m is a relative pathname  and  [4mdirfd[24m  is  a
+              file descriptor referring to a file other than a directory.
+
+       [1mENXIO  O_NONBLOCK  [22m|  [1mO_WRONLY [22mis set, the named file is a FIFO, and
+              no process has the FIFO open for reading.
+
+       [1mENXIO  [22mThe file is a device special file and no corresponding device
+              exists.
+
+       [1mENXIO  [22mThe file is a UNIX domain socket.
+
+       [1mEOPNOTSUPP[0m
+              The filesystem containing [4mpathname[24m does  not  support  [1mO_TMP‐[0m
+              [1mFILE[22m.
+
+       [1mEOVERFLOW[0m
+              [4mpathname[24m  refers  to  a  regular file that is too large to be
+              opened.  The usual scenario here is that an application  com‐
+              piled  on  a  32-bit  platform without [4m-D_FILE_OFFSET_BITS=64[0m
+              tried to open a file whose size exceeds [4m(1<<31)-1[24m bytes;  see
+              also  [1mO_LARGEFILE  [22mabove.   This  is  the  error specified by
+              POSIX.1; before Linux 2.6.24, Linux gave the error [1mEFBIG  [22mfor
+              this case.
+
+       [1mEPERM  [22mThe  [1mO_NOATIME  [22mflag was specified, but the effective user ID
+              of the caller did not match the owner of  the  file  and  the
+              caller was not privileged.
+
+       [1mEPERM  [22mThe operation was prevented by a file seal; see [1mfcntl[22m(2).
+
+       [1mEROFS  [4m[22mpathname[24m refers to a file on a read-only filesystem and write
+              access was requested.
+
+       [1mETXTBSY[0m
+              [4mpathname[24m refers to an executable image which is currently be‐
+              ing executed and write access was requested.
+
+       [1mETXTBSY[0m
+              [4mpathname[24m  refers to a file that is currently in use as a swap
+              file, and the [1mO_TRUNC [22mflag was specified.
+
+       [1mETXTBSY[0m
+              [4mpathname[24m refers to a file that is currently being read by the
+              kernel (e.g., for module/firmware loading), and write  access
+              was requested.
+
+       [1mEWOULDBLOCK[0m
+              The  [1mO_NONBLOCK [22mflag was specified, and an incompatible lease
+              was held on the file (see [1mfcntl[22m(2)).
+
+[1mVERSIONS[0m
+       The (undefined) effect of [1mO_RDONLY | O_TRUNC [22mvaries among  implemen‐
+       tations.  On many systems the file is actually truncated.
+
+   [1mSynchronized I/O[0m
+       The POSIX.1-2008 "synchronized I/O" option specifies different vari‐
+       ants  of  synchronized  I/O,  and specifies the [1mopen[22m() flags [1mO_SYNC[22m,
+       [1mO_DSYNC[22m, and [1mO_RSYNC [22mfor controlling the  behavior.   Regardless  of
+       whether  an  implementation  supports  this option, it must at least
+       support the use of [1mO_SYNC [22mfor regular files.
+
+       Linux implements [1mO_SYNC [22mand [1mO_DSYNC[22m, but not [1mO_RSYNC[22m.  Somewhat  in‐
+       correctly,  glibc  defines [1mO_RSYNC [22mto have the same value as [1mO_SYNC[22m.
+       ([1mO_RSYNC [22mis defined in the Linux header file [4m<asm/fcntl.h>[24m on HP PA-
+       RISC, but it is not used.)
+
+       [1mO_SYNC [22mprovides synchronized I/O [4mfile[24m integrity completion,  meaning
+       write  operations will flush data and all associated metadata to the
+       underlying hardware.  [1mO_DSYNC [22mprovides  synchronized  I/O  [4mdata[24m  in‐
+       tegrity  completion, meaning write operations will flush data to the
+       underlying hardware, but will only flush metadata updates  that  are
+       required  to  allow a subsequent read operation to complete success‐
+       fully.  Data integrity completion can reduce the number of disk  op‐
+       erations  that  are  required  for  applications that don't need the
+       guarantees of file integrity completion.
+
+       To understand the difference between the two  types  of  completion,
+       consider  two  pieces  of  file metadata: the file last modification
+       timestamp ([4mst_mtime[24m) and the file length.  All write operations will
+       update the last file modification timestamp, but  only  writes  that
+       add  data  to  the end of the file will change the file length.  The
+       last modification timestamp is not needed to ensure that a read com‐
+       pletes successfully, but the file length is.   Thus,  [1mO_DSYNC  [22mwould
+       only guarantee to flush updates to the file length metadata (whereas
+       [1mO_SYNC [22mwould also always flush the last modification timestamp meta‐
+       data).
+
+       Before  Linux  2.6.33,  Linux  implemented  only the [1mO_SYNC [22mflag for
+       [1mopen[22m().  However, when that flag was specified, most filesystems ac‐
+       tually provided the equivalent of synchronized  I/O  [4mdata[24m  integrity
+       completion  (i.e., [1mO_SYNC [22mwas actually implemented as the equivalent
+       of [1mO_DSYNC[22m).
+
+       Since Linux 2.6.33, proper [1mO_SYNC [22msupport is provided.  However,  to
+       ensure  backward  binary compatibility, [1mO_DSYNC [22mwas defined with the
+       same value as the historical [1mO_SYNC[22m, and [1mO_SYNC [22mwas defined as a new
+       (two-bit) flag value that includes the [1mO_DSYNC [22mflag value.  This en‐
+       sures that applications compiled against new headers  get  at  least
+       [1mO_DSYNC [22msemantics before Linux 2.6.33.
+
+   [1mC library/kernel differences[0m
+       Since  glibc 2.26, the glibc wrapper function for [1mopen[22m() employs the
+       [1mopenat[22m() system call, rather than the kernel's [1mopen[22m()  system  call.
+       For certain architectures, this is also true before glibc 2.26.
+
+[1mSTANDARDS[0m
+       [1mopen[22m()
+       [1mcreat[22m()
+       [1mopenat[22m()
+              POSIX.1-2008.
+
+       [1mopenat2[22m(2) Linux.
+
+       The  [1mO_DIRECT[22m, [1mO_NOATIME[22m, [1mO_PATH[22m, and [1mO_TMPFILE [22mflags are Linux-spe‐
+       cific.  One must define [1m_GNU_SOURCE [22mto obtain their definitions.
+
+       The [1mO_CLOEXEC[22m, [1mO_DIRECTORY[22m, and [1mO_NOFOLLOW [22mflags are  not  specified
+       in  POSIX.1-2001,  but  are  specified in POSIX.1-2008.  Since glibc
+       2.12,  one  can  obtain  their  definitions   by   defining   either
+       [1m_POSIX_C_SOURCE  [22mwith  a  value  greater than or equal to 200809L or
+       [1m_XOPEN_SOURCE [22mwith a value greater than or equal to 700.   In  glibc
+       2.11   and   earlier,   one  obtains  the  definitions  by  defining
+       [1m_GNU_SOURCE[22m.
+
+[1mHISTORY[0m
+       [1mopen[22m()
+       [1mcreat[22m()
+              SVr4, 4.3BSD, POSIX.1-2001.
+
+       [1mopenat[22m()
+              POSIX.1-2008.  Linux 2.6.16, glibc 2.4.
+
+[1mNOTES[0m
+       Under Linux, the [1mO_NONBLOCK [22mflag is sometimes used  in  cases  where
+       one  wants  to  open  but does not necessarily have the intention to
+       read or write.  For example, this may be used to open  a  device  in
+       order to get a file descriptor for use with [1mioctl[22m(2).
+
+       Note  that  [1mopen[22m() can open device special files, but [1mcreat[22m() cannot
+       create them; use [1mmknod[22m(2) instead.
+
+       If the file is  newly  created,  its  [4mst_atime[24m,  [4mst_ctime[24m,  [4mst_mtime[0m
+       fields  (respectively,  time  of  last  access,  time of last status
+       change, and time of last modification; see [1mstat[22m(2)) are set  to  the
+       current  time,  and  so  are the [4mst_ctime[24m and [4mst_mtime[24m fields of the
+       parent directory.  Otherwise, if the file is modified because of the
+       [1mO_TRUNC [22mflag, its [4mst_ctime[24m and [4mst_mtime[24m fields are set to  the  cur‐
+       rent time.
+
+       The  files in the [4m/proc/[24mpid[4m/fd[24m directory show the open file descrip‐
+       tors  of  the  process  with  the  PID  [4mpid[24m.   The  files   in   the
+       [4m/proc/[24mpid[4m/fdinfo[24m  directory  show  even more information about these
+       file descriptors.  See [1mproc[22m(5) for further details of both of  these
+       directories.
+
+       The  Linux  header  file  [1m<asm/fcntl.h>  [22mdoesn't define [1mO_ASYNC[22m; the
+       (BSD-derived) [1mFASYNC [22msynonym is defined instead.
+
+   [1mOpen file descriptions[0m
+       The term open file description is the one used by POSIX to refer  to
+       the  entries  in the system-wide table of open files.  In other con‐
+       texts, this object is variously also called an "open file object", a
+       "file handle", an "open file table  entry",  or—in  kernel-developer
+       parlance—a [4mstruct[24m [4mfile[24m.
+
+       When  a file descriptor is duplicated (using [1mdup[22m(2) or similar), the
+       duplicate refers to the same open file description as  the  original
+       file descriptor, and the two file descriptors consequently share the
+       file  offset and file status flags.  Such sharing can also occur be‐
+       tween processes: a child process created via [1mfork[22m(2) inherits dupli‐
+       cates of its parent's file descriptors, and those  duplicates  refer
+       to the same open file descriptions.
+
+       Each  [1mopen[22m()  of  a  file creates a new open file description; thus,
+       there may be multiple open file descriptions corresponding to a file
+       inode.
+
+       On Linux, one can  use  the  [1mkcmp[22m(2)  [1mKCMP_FILE  [22moperation  to  test
+       whether  two file descriptors (in the same process or in two differ‐
+       ent processes) refer to the same open file description.
+
+   [1mNFS[0m
+       There are many infelicities in the protocol underlying NFS,  affect‐
+       ing amongst others [1mO_SYNC [22mand [1mO_NDELAY[22m.
+
+       On  NFS  filesystems  with  UID mapping enabled, [1mopen[22m() may return a
+       file descriptor but, for example, [1mread[22m(2) requests are  denied  with
+       [1mEACCES[22m.   This is because the client performs [1mopen[22m() by checking the
+       permissions, but UID mapping is performed by the  server  upon  read
+       and write requests.
+
+   [1mFIFOs[0m
+       Opening  the  read or write end of a FIFO blocks until the other end
+       is also opened (by another process or thread).  See [1mfifo[22m(7) for fur‐
+       ther details.
+
+   [1mFile access mode[0m
+       Unlike the other values that can be specified in [4mflags[24m,  the  [4maccess[0m
+       [4mmode[24m values [1mO_RDONLY[22m, [1mO_WRONLY[22m, and [1mO_RDWR [22mdo not specify individual
+       bits.   Rather, they define the low order two bits of [4mflags[24m, and are
+       defined respectively as 0, 1, and 2.  In other words,  the  combina‐
+       tion  [1mO_RDONLY | O_WRONLY [22mis a logical error, and certainly does not
+       have the same meaning as [1mO_RDWR[22m.
+
+       Linux reserves the special, nonstandard access mode 3 (binary 11) in
+       [4mflags[24m to mean: check for read and write permission on the  file  and
+       return  a file descriptor that can't be used for reading or writing.
+       This nonstandard access mode is used by some Linux drivers to return
+       a file descriptor that  is  to  be  used  only  for  device-specific
+       [1mioctl[22m(2) operations.
+
+   [1mRationale for openat() and other directory file descriptor APIs[0m
+       [1mopenat[22m()  and the other system calls and library functions that take
+       a directory file descriptor  argument  (i.e.,  [1mexecveat[22m(2),  [1mfacces‐[0m
+       [1msat[22m(2),  [1mfanotify_mark[22m(2),  [1mfchmodat[22m(2), [1mfchownat[22m(2), [1mfspick[22m(2), [1mfs‐[0m
+       [1mtatat[22m(2), [1mfutimesat[22m(2), [1mlinkat[22m(2), [1mmkdirat[22m(2), [1mmknodat[22m(2), [1mmount_se‐[0m
+       [1mtattr[22m(2), [1mmove_mount[22m(2),  [1mname_to_handle_at[22m(2),  [1mopen_tree[22m(2),  [1mope‐[0m
+       [1mnat2[22m(2),  [1mreadlinkat[22m(2),  [1mrenameat[22m(2),  [1mrenameat2[22m(2), [1mstatx[22m(2), [1msym‐[0m
+       [1mlinkat[22m(2), [1munlinkat[22m(2), [1mutimensat[22m(2), [1mmkfifoat[22m(3), and [1mscandirat[22m(3))
+       address two problems with the older interfaces that  preceded  them.
+       Here,  the explanation is in terms of the [1mopenat[22m() call, but the ra‐
+       tionale is analogous for the other interfaces.
+
+       First, [1mopenat[22m() allows an application to avoid race conditions  that
+       could  occur  when  using  [1mopen[22m() to open files in directories other
+       than the current working directory.  These  race  conditions  result
+       from  the  fact that some component of the directory prefix given to
+       [1mopen[22m() could be changed in parallel with the call to  [1mopen[22m().   Sup‐
+       pose, for example, that we wish to create the file [4mdir1/dir2/xxx.dep[0m
+       if  the  file [4mdir1/dir2/xxx[24m exists.  The problem is that between the
+       existence check and the file-creation  step,  [4mdir1[24m  or  [4mdir2[24m  (which
+       might  be  symbolic links) could be modified to point to a different
+       location.  Such races can be avoided by opening  a  file  descriptor
+       for  the  target directory, and then specifying that file descriptor
+       as the [4mdirfd[24m argument of (say) [1mfstatat[22m(2) and [1mopenat[22m().  The use  of
+       the [4mdirfd[24m file descriptor also has other benefits:
+
+       •  the  file descriptor is a stable reference to the directory, even
+          if the directory is renamed; and
+
+       •  the open file descriptor prevents the underlying filesystem  from
+          being  dismounted,  just  as when a process has a current working
+          directory on a filesystem.
+
+       Second, [1mopenat[22m() allows the implementation of a per-thread  "current
+       working  directory", via file descriptor(s) maintained by the appli‐
+       cation.  (This functionality can also be obtained by tricks based on
+       the use of [4m/proc/self/fd/[24mdirfd, but less efficiently.)
+
+       The [4mdirfd[24m argument for these APIs can be obtained by using [1mopen[22m() or
+       [1mopenat[22m() to open a directory (with either the [1mO_RDONLY [22mor the [1mO_PATH[0m
+       flag).  Alternatively, such a file descriptor can be obtained by ap‐
+       plying [1mdirfd[22m(3) to a directory stream created using [1mopendir[22m(3).
+
+       When these APIs are given a [4mdirfd[24m argument of [1mAT_FDCWD [22mor the speci‐
+       fied pathname is absolute, then they handle their pathname  argument
+       in the same way as the corresponding conventional APIs.  However, in
+       this  case,  several of the APIs have a [4mflags[24m argument that provides
+       access to functionality that is not available with the corresponding
+       conventional APIs.
+
+   [1mO_DIRECT[0m
+       The [1mO_DIRECT [22mflag may impose alignment restrictions  on  the  length
+       and  address  of user-space buffers and the file offset of I/Os.  In
+       Linux alignment restrictions vary by filesystem and  kernel  version
+       and  might  be absent entirely.  The handling of misaligned [1mO_DIRECT[0m
+       I/Os also varies; they can either fail with [1mEINVAL [22mor fall  back  to
+       buffered I/O.
+
+       Since  Linux  6.1, [1mO_DIRECT [22msupport and alignment restrictions for a
+       file can be queried using [1mstatx[22m(2), using the  [1mSTATX_DIOALIGN  [22mflag.
+       Support for [1mSTATX_DIOALIGN [22mvaries by filesystem; see [1mstatx[22m(2).
+
+       Some  filesystems provide their own interfaces for querying [1mO_DIRECT[0m
+       alignment restrictions, for example the [1mXFS_IOC_DIOINFO [22moperation in
+       [1mxfsctl[22m(3).  [1mSTATX_DIOALIGN [22mshould be used instead when it is  avail‐
+       able.
+
+       If  none  of  the  above  is  available, then direct I/O support and
+       alignment restrictions can only be assumed from  known  characteris‐
+       tics  of the filesystem, the individual file, the underlying storage
+       device(s), and the kernel version.  In Linux 2.4,  most  filesystems
+       based  on  block devices require that the file offset and the length
+       and memory address of all I/O segments be multiples of the  filesys‐
+       tem block size (typically 4096 bytes).  In Linux 2.6.0, this was re‐
+       laxed  to  the logical block size of the block device (typically 512
+       bytes).  A block device's logical block size can be determined using
+       the [1mioctl[22m(2) [1mBLKSSZGET [22moperation or from the shell  using  the  com‐
+       mand:
+
+           blockdev --getss
+
+       [1mO_DIRECT [22mI/Os should never be run concurrently with the [1mfork[22m(2) sys‐
+       tem  call, if the memory buffer is a private mapping (i.e., any map‐
+       ping created with the [1mmmap[22m(2) [1mMAP_PRIVATE [22mflag; this includes memory
+       allocated on the heap and statically allocated buffers).   Any  such
+       I/Os,  whether  submitted  via an asynchronous I/O interface or from
+       another thread in the process, should be completed before [1mfork[22m(2) is
+       called.  Failure to do so can result in data  corruption  and  unde‐
+       fined behavior in parent and child processes.  This restriction does
+       not  apply  when the memory buffer for the [1mO_DIRECT [22mI/Os was created
+       using [1mshmat[22m(2) or [1mmmap[22m(2) with the [1mMAP_SHARED [22mflag.  Nor  does  this
+       restriction  apply  when  the  memory  buffer  has  been  advised as
+       [1mMADV_DONTFORK [22mwith [1mmadvise[22m(2), ensuring that it will not  be  avail‐
+       able to the child after [1mfork[22m(2).
+
+       The [1mO_DIRECT [22mflag was introduced in SGI IRIX, where it has alignment
+       restrictions  similar  to  those  of Linux 2.4.  IRIX has also a [1mfc‐[0m
+       [1mntl[22m(2) call to query appropriate alignments, and sizes.  FreeBSD 4.x
+       introduced a flag of the same name, but without  alignment  restric‐
+       tions.
+
+       [1mO_DIRECT  [22msupport  was  added  in Linux 2.4.10.  Older Linux kernels
+       simply ignore this flag.  Some filesystems  may  not  implement  the
+       flag,  in  which  case  [1mopen[22m()  fails with the error [1mEINVAL [22mif it is
+       used.
+
+       Applications should avoid mixing [1mO_DIRECT [22mand normal I/O to the same
+       file, and especially to overlapping byte regions in the  same  file.
+       Even  when  the filesystem correctly handles the coherency issues in
+       this situation, overall I/O throughput is likely to be  slower  than
+       using either mode alone.  Likewise, applications should avoid mixing
+       [1mmmap[22m(2) of files with direct I/O to the same files.
+
+       The  behavior  of  [1mO_DIRECT [22mwith NFS will differ from local filesys‐
+       tems.  Older kernels, or kernels configured in certain ways, may not
+       support this combination.  The NFS protocol does not support passing
+       the flag to the server, so [1mO_DIRECT [22mI/O will bypass the  page  cache
+       only  on the client; the server may still cache the I/O.  The client
+       asks the server to make the I/O synchronous to preserve the synchro‐
+       nous semantics of [1mO_DIRECT[22m.  Some servers will perform poorly  under
+       these  circumstances,  especially  if  the  I/O size is small.  Some
+       servers may also be configured to lie to clients about the I/O  hav‐
+       ing  reached stable storage; this will avoid the performance penalty
+       at some risk to data integrity in the event of server power failure.
+       The Linux NFS client places no alignment  restrictions  on  [1mO_DIRECT[0m
+       I/O.
+
+       In  summary,  [1mO_DIRECT [22mis a potentially powerful tool that should be
+       used with caution.  It is recommended that applications treat use of
+       [1mO_DIRECT [22mas a performance option which is disabled by default.
+
+[1mBUGS[0m
+       Currently, it is not possible to enable signal-driven I/O by  speci‐
+       fying [1mO_ASYNC [22mwhen calling [1mopen[22m(); use [1mfcntl[22m(2) to enable this flag.
+
+       One  must  check  for  two different error codes, [1mEISDIR [22mand [1mENOENT[22m,
+       when trying to determine whether the kernel supports [1mO_TMPFILE [22mfunc‐
+       tionality.
+
+       When both [1mO_CREAT [22mand [1mO_DIRECTORY [22mare specified  in  [4mflags[24m  and  the
+       file specified by [4mpathname[24m does not exist, [1mopen[22m() will create a reg‐
+       ular file (i.e., [1mO_DIRECTORY [22mis ignored).
+
+[1mSEE ALSO[0m
+       [1mchmod[22m(2),  [1mchown[22m(2),  [1mclose[22m(2), [1mdup[22m(2), [1mfcntl[22m(2), [1mlink[22m(2), [1mlseek[22m(2),
+       [1mmknod[22m(2),  [1mmmap[22m(2),  [1mmount[22m(2),   [1mopen_by_handle_at[22m(2),   [1mopenat2[22m(2),
+       [1mread[22m(2),   [1msocket[22m(2),   [1mstat[22m(2),   [1mumask[22m(2),   [1munlink[22m(2),  [1mwrite[22m(2),
+       [1mfopen[22m(3), [1macl[22m(5), [1mfifo[22m(7), [1minode[22m(7), [1mpath_resolution[22m(7), [1msymlink[22m(7)
+
+Linux man-pages 6.7              2024-01-16                         [4mopen[24m(2)
