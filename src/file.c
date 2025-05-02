@@ -19,7 +19,7 @@ int create_db_file(char *filename) {
 		return STATUS_ERROR;
 	}
 
-	// now if the file fails to open in readonly mode, do the following (create file)
+	// now if the file fails to open in readonly mode, do the following (create a file)
 	fd = open(filename, O_RDWR | O_CREAT, 0644); //
 	/*
 	 * O_CREAT -> if the pathname does not exist, create it as a regular file

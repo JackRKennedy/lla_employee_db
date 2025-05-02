@@ -27,6 +27,7 @@ int main(const int argc, char *argv[]) {
 	char *filepath = NULL;
 	int c; // command line flag variable
 	int dbfd = -1; // not valid file descriptor by default
+	struct dbheader_t *dbhdr = NULL;
 
 	while ((c = getopt(argc, argv, "nf:")) != -1){
 		/*reads command line arguments passed with file call
@@ -50,6 +51,11 @@ int main(const int argc, char *argv[]) {
 		dbfd = create_db_file(filepath); // creates a new db at the filepath given by user - returns database file descriptor
 		if (dbfd == STATUS_ERROR) {
 			printf("Unable to create database file\n");
+			return -1;
+		}
+		if (create_db_header(dbfd, &dbhdr) == STATUS_ERROR) {
+		printf("Failed to create database header\n");
+		return -1;
 		}
 	} else { // i.e. the file exists and does not need to be created
 			dbfd = open_db_file(filepath);
@@ -57,6 +63,8 @@ int main(const int argc, char *argv[]) {
 				printf("Unable to open database file %s\n", filepath);
 				return -1;
 			}
+
+
 
 		}
 

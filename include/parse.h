@@ -4,10 +4,10 @@
 #define HEADER_MAGIC 0x4c4c4144
 
 struct dbheader_t {
-	unsigned int magic;
-	unsigned short version;
-	unsigned short count;
-	unsigned int filesize;
+	unsigned int magic; // magic value tells parser if this is a valid file to deal with
+	unsigned short version; // version of file spec
+	unsigned short count; // number of employees
+	unsigned int filesize; // metadata, size of the file in kb, used for corruption avoidance
 };
 
 struct employee_t {
@@ -15,7 +15,7 @@ struct employee_t {
 	char address[256];
 	unsigned int hours;
 };
-
+/* all functions will be the same scaffolding, returning some good or bad value or a file descriptor*/
 int create_db_header(int fd, struct dbheader_t **headerOut);
 int validate_db_header(int fd, struct dbheader_t **headerOut);
 int read_employees(int fd, struct dbheader_t *, struct employee_t **employeesOut);
