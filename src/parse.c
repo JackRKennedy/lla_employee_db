@@ -10,6 +10,84 @@
 #include "../include/parse.h"
 #include "../include/common.h"
 
+struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *employeename) {
+	/* break this down
+	 * Take in employee name from user
+	 * check name is valid string not containing numbers for example
+	 * iterate through file to find matching name
+	 * remove matching employee file
+	 * decrement count
+	 * realloc employee buffer
+	 * return status success
+	 */
+
+	// first check user string doesn't contain any numbers
+	if (employeename == NULL || strlen(employeename) == 0){
+		fprintf(stderr, "Error: Employee name cannot be blank\n");
+		return NULL;
+	}
+
+	int found_index = -1; // non valid definition by default
+
+	// iterate through employee names to compare
+	int i =0;
+	for (; i < dbhdr->count; i++) {
+		if (strcmp(employees[i].name, employeename) == 0) {
+			found_index = i;
+			break;
+		}
+	}
+
+	if (found_index == -1) {
+		printf("Employee was not found, please check your spelling, or they may already have been deleted\n");
+		return NULL;
+	}
+
+	// calculate the number of elements to move
+	size_t num_employees_to_move = dbhdr->count - found_index - 1;
+
+	//calculate numer of bytes to move (for memmove())
+	size_t num_bytes_to_move = num_employees_to_move * sizeof(struct employee_t);
+
+	if (num_employees_to_move > 0) { // shift all employees after the found one to the left, if the found employee isn't the last index
+		memmove(&employees[found_index], &employees[found_index +1], num_bytes_to_move);
+	}
+
+	dbhdr->count--; // decrement the count variable
+	// this will also handle removing the final employee in the file in the case this is the one being searched for
+
+	struct employee_t *temp = NULL; //initialise temp pointer
+
+	// reallocate memory to the correct size
+	if (dbhdr->count ==0) {
+		//if element you're removing is the last remaining employee, free the memory in full
+		free(employees);
+		employees = NULL;
+		printf("Removed last employee %s. Database is now empty.\n", employeename);
+		return employees;
+	} else { // shrink the allocated amount of memory
+		temp = realloc(employees, dbhdr->count * sizeof(struct employee_t));
+
+		// if realloc didn't work for any reason, return an error
+		if (temp == NULL) {
+			perror("Realloc failed to shrnk\n");
+			printf("Although realloc failed, employee: %s was still logically removed.\n", employeename);
+			return employees;
+		} else {
+			employees = temp; // realloc has worked, and we now can assign the pointer to the new memory location
+			printf("Employee %s has been sucessfully removed\n", employeename);
+			return employees; // return new potential pointer
+
+			// from what I gather, this should be safe enough to do, as the temp pointer is declared locally so any issues iwth it should be scope safe in terms of the main function
+		}
+	}
+
+	printf("The employee %s has been removed.\n", employeename);
+
+	return STATUS_SUCCESS;
+}
+
+
 void list_employees(struct dbheader_t *dbhdr, struct employee_t *employees) {
 	int i = 0;
 	for (; i<dbhdr->count; i++) {
@@ -57,7 +135,7 @@ int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employe
 
 	}
 
-	read(fd, employees, count*sizeof(struct employee_t)); // populate all date into our array
+	read(fd, employees, count*sizeof(struct employee_t)); // populate all data into our array
 
 	int i = 0;
 
@@ -72,29 +150,57 @@ int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employe
 void output_file(int fd, struct dbheader_t *dbhdr, struct employee_t *employees) {
 	if (fd < 0) {
 		printf("Got a bad FD from the user\n");
-		return STATUS_ERROR;
 	}
 
-	int realcount = dbhdr->count;
+	unsigned short realcount = dbhdr->count;
+
+	unsigned int calculated_filesize = sizeof(struct dbheader_t) + (sizeof(struct employee_t) * realcount);
 
 	dbhdr->version = ntohs(dbhdr->version);
 	dbhdr->count = ntohs(dbhdr->count);
 	dbhdr->magic = ntohl(dbhdr->magic);
-	dbhdr->filesize = ntohl(sizeof(struct dbheader_t) + (sizeof(struct employee_t) * realcount));
+	dbhdr->filesize = ntohl(calculated_filesize);
 
 	// have to use lseek -> moves 'cursor' in the open file to a certain position, we will move to front
 
 	lseek(fd, 0, SEEK_SET);
 
-	write(fd, dbhdr, sizeof( struct dbheader_t));
-
-	int i =0;
-
-	for (; i < realcount; i++) {
-		employees[i].hours = htonl(employees[i].hours);
-		write(fd, &employees[i], sizeof(struct employee_t));
+	// Write the updated header (now in network byte order)
+	if (write(fd, dbhdr, sizeof(struct dbheader_t)) != sizeof(struct dbheader_t)) {
+		perror("Failed to write database header");
+		// Handle error appropriately - maybe revert header conversions?
+		return;
 	}
-	return;
+
+	int i = 0;
+
+	for (int i = 0; i < realcount; i++) {
+		// Temporarily convert hours to network byte order for writing
+		unsigned int network_hours = htonl(employees[i].hours);
+		// Write the employee record, but use the original hours field size for the write amount
+		if (write(fd, &employees[i], sizeof(struct employee_t)) != sizeof(struct employee_t)) {
+			perror("Failed to write employee record");
+			// Need to decide how to handle partial writes
+			// Revert hours conversion before returning?
+			employees[i].hours = ntohl(network_hours); // Revert if write failed
+			return;
+		}
+		// IMPORTANT: Revert the conversion in memory after successful write,
+		// so the data in 'employees' array remains in host byte order.
+		employees[i].hours = ntohl(network_hours);
+	}
+
+	dbhdr->version = ntohs(dbhdr->version);
+	dbhdr->count = ntohs(dbhdr->count);
+	dbhdr->magic = ntohl(dbhdr->magic);
+	dbhdr->filesize = ntohl(dbhdr->filesize);
+
+	if (ftruncate(fd, calculated_filesize) == -1) {
+		perror("ftruncate failed");
+	}
+
+	return; // Success
+
 
 }	
 
@@ -104,7 +210,7 @@ int validate_db_header(int fd, struct dbheader_t **headerOut) {
 		return STATUS_ERROR;
 	}
 
-	struct dbheader_t *header = calloc(1, sizeof(struct dbheader_t));
+	struct dbheader_t *header = calloc(1, sizeof(struct dbheader_t)); // create space on the heap/stack
 	if (header == NULL) {
 		printf("Malloc failed to create a Database Header\n");
 		return STATUS_ERROR;
@@ -117,7 +223,7 @@ int validate_db_header(int fd, struct dbheader_t **headerOut) {
 		return STATUS_ERROR;
 	}
 
-	header->version = ntohs(header->version);
+	header->version = ntohs(header->version); // packing values to correct endieness
 	header->count = ntohs(header->count);
 	header->magic = ntohl(header->magic);
 	header->filesize = ntohl(header->filesize);
