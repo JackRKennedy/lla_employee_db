@@ -24,12 +24,15 @@ void print_usage(char *argv[]) {
 
 int main(const int argc, char *argv[]) {
 	bool newfile = false;
+	bool list = false;
 	char *filepath = NULL;
+	char *addstring = NULL; // for adding employees
 	int c; // command line flag variable
 	int dbfd = -1; // not valid file descriptor by default
 	struct dbheader_t *dbhdr = NULL;
+	struct employee_t *employees = NULL;
 
-	while ((c = getopt(argc, argv, "nf:")) != -1){
+	while ((c = getopt(argc, argv, "nf:a:l")) != -1){ // "nf:a:l" are the primary commands and flags we could use, need to be listed here
 		/*reads command line arguments passed with file call
 		currently has flags n - boolean and f: - string ':' denoting a string expectation
 		*/
@@ -39,6 +42,12 @@ int main(const int argc, char *argv[]) {
 				break;
 			case 'f':
 				filepath = optarg; // reads the filename from the commandline and sets the name to it
+				break;
+			case 'a':
+				addstring = optarg; // new flag for adding employees to the database via comma seperated values "John Doe,123 Fake St.,120"
+				break;
+			case 'l':
+				list = true;
 				break;
 			case '?': // unknown input
 				printf("Unknown option -%c", c); // shows the user the flag they entered is invalid
@@ -59,24 +68,46 @@ int main(const int argc, char *argv[]) {
 		}
 	} else { // i.e. the file exists and does not need to be created
 			dbfd = open_db_file(filepath);
-			if (dbfd == STATUS_ERROR) { // if we are still getting error, explain we cannot open file and close the program
-				printf("Unable to open database file %s\n", filepath);
+			if (dbfd == STATUS_ERROR) { // if we are still getting error, explain we cannot open a file and close the program
+				printf("Unable to open database file - filepath: %s\n", filepath);
 				return -1;
 			}
 
-
-
+			if (validate_db_header(dbfd, &dbhdr) == STATUS_ERROR) {
+				printf("Failed to validate database header\n");
+				return -1;
+			}
 		}
 
+	if(read_employees(dbfd, dbhdr, &employees) != STATUS_SUCCESS) {
+		printf("Failed to read employees.\n");
+		return 0;
+	}; // passing address of a pointer to function as we want to overwrite it
+
+	if (addstring) { // i.e. if the -a flag has been used and a string has been provided
+		// now that we are adding an employee, we need to increase the amount of memory we need
+		// can do this by updating the count and then reallocating memory
+
+		dbhdr->count++;
+		employees = realloc(employees, dbhdr->count * sizeof(struct employee_t));
+		// realloc uses the original pointer (employees) and reallocates the second parameters size
+
+		add_employee(dbhdr, employees, addstring);
+	}
 	// after breaking out of the while loop
-	printf("Newfile %d\n", newfile);    // prints the newly created file name
+	newfile ? printf("New file created - %s\n", filepath) : printf("No new file created\n");   // prints the newly created file name
+
+if (list) {
+	list_employees(dbhdr, employees);
+}
 if (filepath != NULL) {
-	printf("Filepath %d\n", *filepath);
+	printf("Filepath %s\n", filepath);
 }
 else {
 	printf("Filepath is a required argument\n");
-	print_usage(argv); // print_usage explains to user how the main program should be run, including flags and arguments etc
+	print_usage(argv); // print_usage explains to the user how the main program should be run, including flags and arguments etc.
 }
+	output_file(dbfd, dbhdr, employees);
 
 	return 0;
 }
