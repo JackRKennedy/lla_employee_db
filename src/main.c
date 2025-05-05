@@ -102,10 +102,9 @@ int main(const int argc, char *argv[]) {
 		// realloc uses the original pointer (employees) and reallocates the second parameters size
 
 		add_employee(dbhdr, employees, addstring);
-		list_employees(dbhdr, employees);
 	}
 
-	if (employeename) { // if -r flag is used
+	if (employeename) { // if an -r flag is used
 		if (strlen(employeename) == 0) { // check the string isn't empty
 			printf("Bad input from user\n"); // print error
 			return STATUS_ERROR;
@@ -118,7 +117,6 @@ int main(const int argc, char *argv[]) {
 			return STATUS_ERROR;
 		} else {
 			employees = updated_employees; // if the employee was removed, update the employees pointer to the new one
-			list_employees(dbhdr, employees); // print the updated list of employees
 		}
 	}
 	// after breaking out of the while loop

@@ -13,7 +13,7 @@ struct dbheader_t {
 struct employee_t {
 	char name[256];
 	char address[256]; // 256 is a good round number for buffers
-	unsigned int hours;
+	int hours;
 };
 
 /* all functions will be the same scaffolding, returning some good or bad value or a file descriptor*/
@@ -21,7 +21,7 @@ int create_db_header(int fd, struct dbheader_t **headerOut);
 int validate_db_header(int fd, struct dbheader_t **headerOut);
 int read_employees(int fd, struct dbheader_t *, struct employee_t **employeesOut);
 void output_file(int fd, struct dbheader_t *, struct employee_t *employees);
-void list_employees(struct dbheader_t *dbhdr, struct employee_t *employees);
+void list_employees(const struct dbheader_t *dbhdr, struct employee_t *employees);
 int add_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *addstring);
 
 // TODO: implement the following functions

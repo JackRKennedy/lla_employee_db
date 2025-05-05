@@ -11,14 +11,14 @@
 #include "../include/common.h"
 
 struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *employeename) {
-	/* break this down
+	/*
 	 * Take in employee name from user
-	 * check name is valid string not containing numbers for example
+	 * check name is valid string not containing numbers for example - still to be implemented
 	 * iterate through file to find matching name
-	 * remove matching employee file
+	 * remove matching employee file by shifting all employees after the found employee to the left
 	 * decrement count
-	 * realloc employee buffer
-	 * return status success
+	 * realloc employee buffer to match new count
+	 * return new employee_t pointer employees
 	 */
 
 	// first check user string doesn't contain any numbers
@@ -43,14 +43,31 @@ struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t 
 		return NULL;
 	}
 
-	// calculate the number of elements to move
-	size_t num_employees_to_move = dbhdr->count - found_index - 1;
+    printf("DEBUG: Removing employee at index %d. Current count: %u.\n", found_index, dbhdr->count);
+    size_t num_employees_to_move = dbhdr->count - found_index - 1;
+    size_t num_bytes_to_move = num_employees_to_move * sizeof(struct employee_t);
+    printf("DEBUG: Employees to move: %zu. Bytes to move: %zu.\n", num_employees_to_move, num_bytes_to_move);
+    printf("DEBUG: sizeof(struct employee_t) is: %zu\n", sizeof(struct employee_t));
+    printf("DEBUG: Destination address: %p\n", (void*)&employees[found_index]);
+    if (num_employees_to_move > 0) {
+        printf("DEBUG: Source address: %p\n", (void*)&employees[found_index + 1]);
+    } // debugging issues with memory allocation after removal of an employee
 
-	//calculate numer of bytes to move (for memmove())
-	size_t num_bytes_to_move = num_employees_to_move * sizeof(struct employee_t);
+    // Original code continues...
+	if (num_employees_to_move > 0) {
+		memmove(&employees[found_index], &employees[found_index + 1], num_bytes_to_move);
+		printf("DEBUG: memmove completed.\n");
 
-	if (num_employees_to_move > 0) { // shift all employees after the found one to the left, if the found employee isn't the last index
-		memmove(&employees[found_index], &employees[found_index +1], num_bytes_to_move);
+		// Add post-move check - Check the data now at found_index
+		printf("DEBUG: Post-move data check:\n");
+		printf("  New Data Slot [%d]: Hours = %d @ %p\n",
+			   found_index, employees[found_index].hours, (void*)&employees[found_index]);
+		// Optionally print the next one too, if applicable
+		if (dbhdr->count > found_index + 2) { // Check bounds carefully
+			printf("  New Data Slot [%d]: Hours = %d @ %p\n",
+			  found_index + 1, employees[found_index + 1].hours, (void*)&employees[found_index + 1]);
+		}
+
 	}
 
 	dbhdr->count--; // decrement the count variable
@@ -75,26 +92,21 @@ struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t 
 			return employees;
 		} else {
 			employees = temp; // realloc has worked, and we now can assign the pointer to the new memory location
-			printf("Employee %s has been sucessfully removed\n", employeename);
-			return employees; // return new potential pointer
+			printf("Employee %s has been successfully removed\n", employeename);
+			return employees; // return a new potential pointer
 
 			// from what I gather, this should be safe enough to do, as the temp pointer is declared locally so any issues iwth it should be scope safe in terms of the main function
 		}
 	}
-
-	printf("The employee %s has been removed.\n", employeename);
-
-	return STATUS_SUCCESS;
 }
 
 
-void list_employees(struct dbheader_t *dbhdr, struct employee_t *employees) {
-	int i = 0;
-	for (; i<dbhdr->count; i++) {
+void list_employees(const struct dbheader_t *dbhdr, struct employee_t *employees) {
+	for (int i = 0; i<dbhdr->count; i++) {
 		printf("Employee %d\n", i);
 		printf("\tName: %s\n", employees[i].name);
 		printf("\tAddress: %s\n", employees[i].address);
-		printf("\tName: %d\n", employees[i].hours);
+		printf("\tHours: %d\n", employees[i].hours);
 	}
 }
 
@@ -102,18 +114,27 @@ int add_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *a
 	//strtok extracts data from the user string based on delimiters and breaks them up into tokens
 
 	char *name = strtok(addstring, ","); // first time using it, you pass the string and the delimiter
+	if (!name) {
+		fprintf(stderr, "Error parsing name.\n"); return STATUS_ERROR;
+	} // if the name is null, then the string is invalid and we should return an error
 
-	char *address = strtok(NULL, ","); // in later times you pass NULL and the delimiter for it to march forward to next instance
+	char *address = strtok(NULL, ","); // in later times you pass NULL and the delimiter for it to march forward to the next instance
+	if (!address) {
+		fprintf(stderr, "Error parsing address.\n"); return STATUS_ERROR;
+	}
 
 	char *hours = strtok(NULL, ","); // can use these to add to employees struct
+	if (!hours) {
+		fprintf(stderr, "Error parsing hours.\n"); return STATUS_ERROR;
+	}
 
 	printf("%s %s %s\n", name, address, hours); // print seperated strings
 
-	strncpy(employees[dbhdr->count-1].name, name, sizeof(employees[dbhdr->count-1].name));
+	strncpy(employees[dbhdr->count -1].name, name, sizeof(employees[dbhdr->count -1].name));
 
-	strncpy(employees[dbhdr->count-1].address, address, sizeof(employees[dbhdr->count-1].address));
+	strncpy(employees[dbhdr->count -1].address, address, sizeof(employees[dbhdr->count -1].address));
 
-	employees[dbhdr->count-1].hours = atoi(hours); // atoi = ascii to integer as the input is in string form we need to convert it
+	employees[dbhdr->count -1].hours = atoi(hours); // atoi = ascii to integer as the input is in string form we need to convert it
 
 	return STATUS_SUCCESS;
 }
@@ -129,17 +150,21 @@ int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employe
 	// create a buffer of space in memory to read off disk
 
 	struct employee_t *employees = calloc(count, sizeof(struct employee_t));
-	if (employees == -1) {
-		printf("Malloc failed\n");
+	if (employees == NULL) {
+		printf("Calloc failed for employees\n");
 		return STATUS_ERROR;
 
 	}
-
-	read(fd, employees, count*sizeof(struct employee_t)); // populate all data into our array
-
-	int i = 0;
-
-	for (; i < count; i++) {
+	// calculate bytes to read
+	size_t bytes_to_read = count * sizeof(struct employee_t);
+	if (read(fd, employees, bytes_to_read) != bytes_to_read) {
+		perror("Failed to read all employee data\n");
+		free(employees);
+		return STATUS_ERROR;
+		// populate all data into our array
+	}
+	for (int i = 0; i < count; i++) {
+		// this should work now with the conversion updated in output file
 		employees[i].hours = ntohl(employees[i].hours);
 	}
 
@@ -148,6 +173,12 @@ int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employe
 }
 
 void output_file(int fd, struct dbheader_t *dbhdr, struct employee_t *employees) {
+	/*
+	 * Changes made to the output file now handle some issues with poor memory allocation (i believe this was na issue i was having)
+	 * it corrects issues I was having with network and host conversions
+	 * this 'should' write the employees to the file in network byte order but keey the employees pointer in host byte order
+	 * i could probably adjust my logic to handle this more elegantly but this looks like an effective solution
+	 */
 	if (fd < 0) {
 		printf("Got a bad FD from the user\n");
 	}
@@ -156,44 +187,46 @@ void output_file(int fd, struct dbheader_t *dbhdr, struct employee_t *employees)
 
 	unsigned int calculated_filesize = sizeof(struct dbheader_t) + (sizeof(struct employee_t) * realcount);
 
-	dbhdr->version = ntohs(dbhdr->version);
-	dbhdr->count = ntohs(dbhdr->count);
-	dbhdr->magic = ntohl(dbhdr->magic);
-	dbhdr->filesize = ntohl(calculated_filesize);
+	struct dbheader_t header_net; // temporary header for byte conversion
+	memcpy(&header_net, dbhdr, sizeof(struct dbheader_t)); // copy the original header
+
+	header_net.version = htons(header_net.version); // convert to network byte order
+	header_net.count = htons(header_net.count);
+	header_net.magic = htonl(header_net.magic);
+	header_net.filesize = htonl(calculated_filesize);
+
+	// dbhdr->version = ntohs(dbhdr->version);
+	// dbhdr->count = ntohs(dbhdr->count);
+	// dbhdr->magic = ntohl(dbhdr->magic);
+	// dbhdr->filesize = ntohl(calculated_filesize);
 
 	// have to use lseek -> moves 'cursor' in the open file to a certain position, we will move to front
 
 	lseek(fd, 0, SEEK_SET);
 
-	// Write the updated header (now in network byte order)
-	if (write(fd, dbhdr, sizeof(struct dbheader_t)) != sizeof(struct dbheader_t)) {
+	// Write the network-order header
+	if (write(fd, &header_net, sizeof(struct dbheader_t)) != sizeof(struct dbheader_t)) {
 		perror("Failed to write database header");
-		// Handle error appropriately - maybe revert header conversions?
 		return;
 	}
 
-	int i = 0;
 
+	// --- Write Employees ---
 	for (int i = 0; i < realcount; i++) {
-		// Temporarily convert hours to network byte order for writing
-		unsigned int network_hours = htonl(employees[i].hours);
-		// Write the employee record, but use the original hours field size for the write amount
-		if (write(fd, &employees[i], sizeof(struct employee_t)) != sizeof(struct employee_t)) {
-			perror("Failed to write employee record");
-			// Need to decide how to handle partial writes
-			// Revert hours conversion before returning?
-			employees[i].hours = ntohl(network_hours); // Revert if write failed
-			return;
-		}
-		// IMPORTANT: Revert the conversion in memory after successful write,
-		// so the data in 'employees' array remains in host byte order.
-		employees[i].hours = ntohl(network_hours);
-	}
+		struct employee_t emp_net; // Create a temporary struct for writing
+		memcpy(&emp_net, &employees[i], sizeof(struct employee_t)); // Copy current employee data
 
-	dbhdr->version = ntohs(dbhdr->version);
-	dbhdr->count = ntohs(dbhdr->count);
-	dbhdr->magic = ntohl(dbhdr->magic);
-	dbhdr->filesize = ntohl(dbhdr->filesize);
+		// Convert hours to network byte order IN THE TEMPORARY STRUCT
+		emp_net.hours = htonl(emp_net.hours);
+
+		// Write the temporary struct (which has hours in network byte order)
+		if (write(fd, &emp_net, sizeof(struct employee_t)) != sizeof(struct employee_t)) {
+			perror("Failed to write employee record");
+			// Consider how to handle partial writes if necessary
+			return; // Stop writing on error
+		}
+		// No need to revert anything in the main 'employees' array, it was never changed.
+	}
 
 	if (ftruncate(fd, calculated_filesize) == -1) {
 		perror("ftruncate failed");
@@ -249,7 +282,7 @@ int validate_db_header(int fd, struct dbheader_t **headerOut) {
 	}
 
 	*headerOut = header;
-
+	return STATUS_SUCCESS;
 }
 
 int create_db_header(int fd, struct dbheader_t **headerOut) {
