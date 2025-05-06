@@ -94,7 +94,7 @@ The application is run from the command line.
 **Important Notes:**
                                  
 -   The `-f` option is *always* required. All commands must be run in conjunction with a target database file.
--   When using the `-a` option, ensure that the employee details are provided as a single comma-separated string without any spaces within the string itself. For example, use "JohnDoe,123FakeSt.,120", and *not* "John Doe, 123 Fake St., 120".
+-   When using the `-a` and `-u` options, ensure that the employee details are provided as a single comma-separated string without any spaces within the string itself. For example, use "JohnDoe,123FakeSt.,120", and *not* "John Doe, 123 Fake St., 120".
                                  
 ## File Structure
                                  
@@ -123,8 +123,10 @@ The project structure is as follows:
                                  
 ## Future Features
                                  
--   **Remove Employee:** Implement functionality to remove an employee from the database by name.
--   **Update Employee Address:** Implement functionality to update an employee's address by name.
+-   **Network Features:** Not exactly sure of desired network capabilities yet but will be a future effort
+
+-   **Expanded employee information/functionality** Will expand employee information to contain details such as salary, tenure, title, and give certain users the ability to change all aspects of an employee
+
                                  
 ## Contributing
                                  
@@ -132,4 +134,4 @@ Contributions are welcome! Feel free to fork the repository and contribute how y
                                  
 ## Acknowledgments
                                  
-This project was built based on tutorials and lessons from [Low Level Academy](https://lowlevelacademy.com/).
+This project was built based on tutorials and lessons from [Low Level Academy](https://lowlevel.academy/).
