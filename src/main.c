@@ -33,12 +33,13 @@ int main(const int argc, char *argv[]) {
 	char *filepath = NULL;
 	char *addstring = NULL; // for adding employees
 	char *employeename = NULL; // for removing employees by name
+	char *update_employee = NULL; // for updating employees by name and hours
 	int c; // command line flag variable
 	int dbfd = -1; // not valid file descriptor by default
 	struct dbheader_t *dbhdr = NULL;
 	struct employee_t *employees = NULL;
 
-	while ((c = getopt(argc, argv, "nf:a:lr:")) != -1){ // "nf:a:lr:" are the primary commands and flags we could use, need to be listed here
+	while ((c = getopt(argc, argv, "nf:a:lr:u:")) != -1){ // "nf:a:lr:" are the primary commands and flags we could use, need to be listed here
 		/*reads command line arguments passed with file call
 		currently has flags n - boolean and f: - string ':' denoting a string expectation
 		*/
@@ -57,6 +58,9 @@ int main(const int argc, char *argv[]) {
 				break;
 			case 'r':
 				employeename = optarg; // take in employee name
+				break;
+			case 'u':
+				update_employee = optarg; // take in string of employee name and new hours seperated by a comma
 				break;
 			case '?': // unknown input
 				printf("Unknown option -%c", c); // shows the user the flag they entered is invalid
@@ -118,6 +122,10 @@ int main(const int argc, char *argv[]) {
 		} else {
 			employees = updated_employees; // if the employee was removed, update the employees pointer to the new one
 		}
+	}
+
+	if (update_employee) { // if an -u flag is used
+		update_employee_hours(dbhdr, employees, update_employee); // call update employee hours function (not implemented yet
 	}
 	// after breaking out of the while loop
 	newfile ? printf("New file created - %s\n", filepath) : printf("No new file created\n");   // prints the newly created file name

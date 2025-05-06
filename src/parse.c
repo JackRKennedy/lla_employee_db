@@ -10,6 +10,49 @@
 #include "../include/parse.h"
 #include "../include/common.h"
 
+int update_employee_hours(struct dbheader_t *dbhdr, struct employee_t *employees, char *update_employee) {
+	/*
+	 * Take in string with employee name and new hours separated by commas
+	 * do sanity checks on strings
+	 * separate two values using strtok into two tokens
+	 * use name token to search for employee
+	 * access employee[found_index].hours and update
+	 * no need to update memory buffer, filesize shouldn't change
+	 * update employee pointer and return Status
+	 */
+
+	// sanity checks on string
+	if (update_employee == NULL || strlen(update_employee) <= 0) {
+		fprintf(stderr, "Error: -u flag must be accompanied by a valid, non-empty string\n");
+		return STATUS_ERROR;
+	}
+
+	// declare a found index
+	int found_index = -1;
+
+	// break up user string into tokens
+	char *name = strtok(update_employee, ","); // name variable from user string
+	char *new_hours = strtok(NULL, ","); // new_hours variable from user string
+
+	// iterate through employee names
+
+	for (int i = 0; i < dbhdr->count; i++) {
+		if (strcmp(employees[i].name, name) == 0) {
+			found_index = i; // found_index is now the index of the employee
+			break;
+		} // if employee name not found, found_index remains at -1, and we can return status_error
+	}
+
+	if (found_index == -1) {
+		printf("Employee was not found, please check your spelling, or they may already have been deleted\n");
+		return STATUS_ERROR;
+	} else {
+		employees[found_index].hours = atoi(new_hours); // update the hours value
+		return STATUS_SUCCESS;
+	}
+
+}
+
 struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *employeename) {
 	/*
 	 * Take in employee name from user

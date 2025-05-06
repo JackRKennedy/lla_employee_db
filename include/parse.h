@@ -26,6 +26,6 @@ int add_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *a
 
 // TODO: implement the following functions
 struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *employeename);
-void update_employee_hours(struct dbheader_t *dbhdr, struct employee_t *employee, char *employeename, char *newhours);
+int update_employee_hours(struct dbheader_t *dbhdr, struct employee_t *employee, char *update_employee);
 
 #endif
