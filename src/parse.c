@@ -56,7 +56,7 @@ int update_employee_hours(struct dbheader_t *dbhdr, struct employee_t *employees
 struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t *employees, char *employeename) {
 	/*
 	 * Take in employee name from user
-	 * check name is valid string not containing numbers for example - still to be implemented
+	 * check name is git a valid string not containing numbers, for example - still to be implemented
 	 * iterate through file to find matching name
 	 * remove matching employee file by shifting all employees after the found employee to the left
 	 * decrement count
