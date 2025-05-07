@@ -18,7 +18,7 @@ int update_employee_hours(struct dbheader_t *dbhdr, struct employee_t *employees
 	 * use name token to search for employee
 	 * access employee[found_index].hours and update
 	 * no need to update memory buffer, filesize shouldn't change
-	 * update employee pointer and return Status
+	 * update the employee pointer and return Status
 	 */
 
 	// sanity checks on string
