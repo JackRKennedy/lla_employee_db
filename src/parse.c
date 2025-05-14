@@ -85,7 +85,7 @@ struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t 
 		printf("Employee was not found, please check your spelling, or they may already have been deleted\n");
 		return NULL;
 	}
-
+	// TODO: Remove this after a few iterations of improvements where there are still no further issues with memory corruption
     printf("DEBUG: Removing employee at index %d. Current count: %u.\n", found_index, dbhdr->count);
     size_t num_employees_to_move = dbhdr->count - found_index - 1;
     size_t num_bytes_to_move = num_employees_to_move * sizeof(struct employee_t);
