@@ -1,1 +1,1 @@
-CMakeLists.txt not found in /Users/jackkennedy/CLionProjects/lla_employee_db Select CMakeLists.txt
+CMakeLists.txt not found in \\wsl.localhost\Ubuntu\home\jack_kennedy\programming\languages\c\employee_db Select CMakeLists.txt

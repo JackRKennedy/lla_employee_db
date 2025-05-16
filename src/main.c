@@ -19,12 +19,23 @@ void print_usage(char *argv[]) {
 	printf("Usage %c -n -f <database file\n", *argv[0]);
 	printf("\t -n - creates new database file\n");
 	printf("\t -f - [required] path to database file\n");
-	printf("\t -a - [required] comma seperated values of employee name, address, hours\n");
+	printf("\t -a - [required] <employee name,address,hours> adds an employee\n");
 	printf("\t -l - lists all employees\n");
-	printf("\t -r - [required] name of employee to remove\n");
+	printf("\t -r - [required] <employee name> remove employee based on name provided\n");
+	printf("\t -u [required] <employee name,new_hours> update the hours of the given employee\n");
 
 
 	// no need to return anything with a void function type in this version of c
+}
+
+void how_to_use() {
+	printf("\nThe below flags are used to naviagte and use the employee databsae file\n");
+	printf("\t -n - creates new database file\n");
+	printf("\t -f - [required] path to database file to either open or create\n");
+	printf("\t -a - [required] <employee name,address,hours> adds an employee\n");
+	printf("\t -l - lists all employees\n");
+	printf("\t -r - [required] <employee name> remove employee based on name provided\n");
+	printf("\t -u - [required] <employee name,new_hours> update the hours of the given employee\n");
 }
 
 int main(const int argc, char *argv[]) {
@@ -39,7 +50,7 @@ int main(const int argc, char *argv[]) {
 	struct dbheader_t *dbhdr = NULL;
 	struct employee_t *employees = NULL;
 
-	while ((c = getopt(argc, argv, "nf:a:lr:u:")) != -1){ // "nf:a:lr:" are the primary commands and flags we could use, need to be listed here
+	while ((c = getopt(argc, argv, "nf:a:lr:u:h")) != -1){ // "nf:a:lr:" are the primary commands and flags we could use, need to be listed here
 		/*reads command line arguments passed with file call
 		currently has flags n - boolean and f: - string ':' denoting a string expectation
 		*/
@@ -61,6 +72,9 @@ int main(const int argc, char *argv[]) {
 				break;
 			case 'u':
 				update_employee = optarg; // take in string of employee name and new hours seperated by a comma
+				break;
+			case 'h':
+				how_to_use();
 				break;
 			case '?': // unknown input
 				printf("Unknown option -%c", c); // shows the user the flag they entered is invalid
@@ -128,13 +142,13 @@ int main(const int argc, char *argv[]) {
 		update_employee_hours(dbhdr, employees, update_employee); // call update employee hours function (not implemented yet
 	}
 	// after breaking out of the while loop
-	newfile ? printf("New file created - %s\n", filepath) : printf("No new file created\n");   // prints the newly created file name
+	newfile ? printf("\nNew file created - %s\n", filepath) : printf("\nNo new file created\n");   // prints the newly created file name
 
 if (list) {
 	list_employees(dbhdr, employees);
 }
 if (filepath != NULL) {
-	printf("Filepath %s\n", filepath);
+	printf("\nFilepath %s\n", filepath);
 }
 else {
 	printf("Filepath is a required argument\n");

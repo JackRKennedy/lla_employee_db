@@ -18,7 +18,7 @@ int update_employee_hours(struct dbheader_t *dbhdr, struct employee_t *employees
 	 * use name token to search for employee
 	 * access employee[found_index].hours and update
 	 * no need to update memory buffer, filesize shouldn't change
-	 * update employee pointer and return Status
+	 * update the employee pointer and return Status
 	 */
 
 	// sanity checks on string
@@ -57,8 +57,8 @@ struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t 
 	/*
 	 * Take in employee name from user
 	 * check name is git a valid string not containing numbers, for example - still to be implemented
-	 * iterate through file to find matching name
-	 * remove matching employee file by shifting all employees after the found employee to the left
+	 * iterate through the file to find matching name
+	 * remove the matching employee file by shifting all employees after the found employee to the left
 	 * decrement count
 	 * realloc employee buffer to match new count
 	 * return new employee_t pointer employees
@@ -120,7 +120,7 @@ struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t 
 
 	// reallocate memory to the correct size
 	if (dbhdr->count ==0) {
-		//if element you're removing is the last remaining employee, free the memory in full
+		// if the element you're removing is the last remaining employee, free the memory in full
 		free(employees);
 		employees = NULL;
 		printf("Removed last employee %s. Database is now empty.\n", employeename);
@@ -138,7 +138,7 @@ struct employee_t * remove_employee(struct dbheader_t *dbhdr, struct employee_t 
 			printf("Employee %s has been successfully removed\n", employeename);
 			return employees; // return a new potential pointer
 
-			// from what I gather, this should be safe enough to do, as the temp pointer is declared locally so any issues iwth it should be scope safe in terms of the main function
+			// from what I gather, this should be safe enough to do, as the temp pointer is declared locally, so any issues iwth it should be scope safe in terms of the main function
 		}
 	}
 }
@@ -217,10 +217,10 @@ int read_employees(int fd, struct dbheader_t *dbhdr, struct employee_t **employe
 
 void output_file(int fd, struct dbheader_t *dbhdr, struct employee_t *employees) {
 	/*
-	 * Changes made to the output file now handle some issues with poor memory allocation (i believe this was na issue i was having)
+	 * Changes made to the output file now handle some issues with poor memory allocation (i believe this was na issue I was having)
 	 * it corrects issues I was having with network and host conversions
 	 * this 'should' write the employees to the file in network byte order but keey the employees pointer in host byte order
-	 * i could probably adjust my logic to handle this more elegantly but this looks like an effective solution
+	 * I could probably adjust my logic to handle this more elegantly but this looks like an effective solution
 	 */
 	if (fd < 0) {
 		printf("Got a bad FD from the user\n");
